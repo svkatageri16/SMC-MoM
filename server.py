@@ -17,7 +17,7 @@ os.makedirs(REC_DIR, exist_ok=True)
 app.mount("/recordings", StaticFiles(directory=REC_DIR), name="recordings")
 
 # AI CONFIG
-GEMINI_KEY = "AIzaSyBBpZkIdcy7Il9arcoKWaoxnRSWecIeuR8"
+GEMINI_KEY = "####################################"
 genai.configure(api_key=GEMINI_KEY)
 # Initialize Whisper once on startup to save time
 print("--- Initializing Whisper (CPU/Medium) ---")
