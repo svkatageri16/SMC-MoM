@@ -5,7 +5,7 @@ from faster_whisper import WhisperModel
 from docx import Document
 
 # --- 1. CONFIGURATION ---
-GEMINI_KEY = "AIzaSyBBpZkIdcy7Il9arcoKWaoxnRSWecIeuR8" # Ensure this is your correct key
+GEMINI_KEY = "##########################" # Ensure this is your correct key
 genai.configure(api_key=GEMINI_KEY)
 
 def get_file_time(filename):
