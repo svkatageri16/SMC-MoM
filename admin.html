@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SMC | Master Editor Suite</title>
+    <style>
+        body { display: flex; height: 100vh; margin: 0; font-family: sans-serif; background: #f4f4f9; }
+        #sidebar { width: 350px; background: #002c5f; color: white; padding: 20px; overflow-y: auto; border-right: 4px solid #d4af37; }
+        #main { flex: 1; display: flex; flex-direction: column; padding: 20px; }
+        .audio-item { background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #2ecc71; }
+        .audio-item p { margin: 5px 0; font-size: 0.9rem; }
+        audio { width: 100%; margin-top: 10px; height: 30px; }
+        #editor-container { flex: 1; display: flex; flex-direction: column; background: white; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); padding: 20px; }
+        textarea { flex: 1; width: 100%; border: 1px solid #ddd; padding: 15px; font-size: 1.1rem; line-height: 1.6; border-radius: 5px; resize: none; }
+        .toolbar { padding: 15px 0; display: flex; gap: 15px; }
+        button { padding: 12px 25px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; color: white; }
+        .btn-process { background: #27ae60; }
+        .btn-gemini { background: #e67e22; }
+    </style>
+</head>
+<body>
+    <div id="sidebar">
+        <h2>Proceedings</h2>
+        <div id="fileList">Loading recordings...</div>
+    </div>
+    <div id="main">
+        <div class="toolbar">
+            <button class="btn-process" onclick="processAudios()">1. Process All Audios</button>
+            <button class="btn-gemini" onclick="generateMoM()">2. Send Final Transcript to Gemini</button>
+        </div>
+        <div id="editor-container">
+            <h3>Transcript Editor (Live)</h3>
+            <textarea id="transcriptText" placeholder="The transcript will appear here after processing. You can edit it manually before sending to Gemini..."></textarea>
+        </div>
+    </div>
+
+    <script>
+        async function fetchFiles() {
+            const res = await fetch('/api/files');
+            const files = await res.json();
+            const list = document.getElementById('fileList');
+            list.innerHTML = '';
+            files.forEach(f => {
+                const div = document.createElement('div');
+                div.className = 'audio-item';
+                div.innerHTML = `
+                    <p><strong>${f.name}</strong> (${f.designation})</p>
+                    <p style="font-size:0.7rem; opacity:0.7">${new Date(f.time * 1000).toLocaleString()}</p>
+                    <audio controls src="/recordings/${f.filename}"></audio>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        async function processAudios() {
+            document.getElementById('transcriptText').value = "Processing... Please wait (AI is transcribing).";
+            const res = await fetch('/api/process');
+            const data = await res.json();
+            document.getElementById('transcriptText').value = data.transcript;
+        }
+
+        async function generateMoM() {
+            const transcript = document.getElementById('transcriptText').value;
+            alert("Sending to Gemini 3 Flash...");
+            const res = await fetch('/api/gemini', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ transcript })
+            });
+            const data = await res.json();
+            alert("Document Generated and Opened: " + data.path);
+        }
+
+        setInterval(fetchFiles, 5000); // Refresh list every 5 seconds
+        fetchFiles();
+    </script>
+</body>
+</html>

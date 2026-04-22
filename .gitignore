@@ -1,0 +1,13 @@
+venv/
+cache/
+ffmpeg/
+ngrok*
+recordings/
+*.docx
+backup_transcript.txt
+raw_transcript.txt
+__pycache__/
+*.zip
+*.exe
+.env
+.vscode/

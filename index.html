@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMC | Speaker Mic</title>
+    <style>
+        :root { --nic-blue: #002c5f; --danger: #d9534f; }
+        body { font-family: sans-serif; background: #e9ecef; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: white; width: 350px; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border-top: 6px solid var(--nic-blue); text-align: center; }
+        input { width: 90%; padding: 12px; margin-bottom: 10px; border: 2px solid #ddd; border-radius: 8px; }
+        button { width: 100%; padding: 15px; border-radius: 50px; border: none; font-weight: bold; cursor: pointer; text-transform: uppercase; margin-top: 10px; }
+        #startBtn { background: var(--nic-blue); color: white; }
+        #stopBtn { background: var(--danger); color: white; }
+        #status { margin-top: 20px; font-weight: bold; color: #555; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2 style="color: var(--nic-blue);">Digital Sansad</h2>
+        <p>Speaker Terminal</p>
+        <input type="text" id="speakerName" placeholder="Full Name">
+        <input type="text" id="speakerDesig" placeholder="Designation (e.g. MP, Minister)">
+        <button id="startBtn">Connect Mic</button>
+        <button id="stopBtn" disabled>Disconnect</button>
+        <div id="status">Status: Ready</div>
+    </div>
+    <script>
+        let socket; let mediaRecorder;
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const status = document.getElementById('status');
+
+        startBtn.onclick = async () => {
+            const name = document.getElementById('speakerName').value;
+            const desig = document.getElementById('speakerDesig').value;
+            if(!name || !desig) return alert("Credentials Required.");
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                // Handshake sends Name and Designation in URL
+                socket = new WebSocket(`${protocol}//${location.host}/ws/${name}/${desig}`);
+
+                mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+                mediaRecorder.ondataavailable = (e) => { if(e.data.size > 0) socket.send(e.data); };
+                mediaRecorder.start(1000);
+
+                status.innerText = "🔴 LIVE RECORDING";
+                startBtn.disabled = true; stopBtn.disabled = false;
+            } catch (err) { alert("Mic Error: " + err.message); }
+        };
+
+        stopBtn.onclick = () => {
+            mediaRecorder.stop(); socket.close();
+            status.innerText = "Transmitted Successfully";
+            startBtn.disabled = false; stopBtn.disabled = true;
+        };
+    </script>
+</body>
+</html>
