@@ -4,57 +4,99 @@
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SMC | Speaker Mic</title>
     <style>
-        :root { --nic-blue: #002c5f; --danger: #d9534f; }
+        :root { --nic-blue: #002c5f; --danger: #d9534f; --gold: #d4af37; }
         body { font-family: sans-serif; background: #e9ecef; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
         .card { background: white; width: 350px; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border-top: 6px solid var(--nic-blue); text-align: center; }
-        input { width: 90%; padding: 12px; margin-bottom: 10px; border: 2px solid #ddd; border-radius: 8px; }
-        button { width: 100%; padding: 15px; border-radius: 50px; border: none; font-weight: bold; cursor: pointer; text-transform: uppercase; margin-top: 10px; }
+        .session-badge { background: #f8f9fa; border: 1px solid #ddd; padding: 10px; border-radius: 8px; margin-bottom: 20px; }
+        .session-title { color: var(--nic-blue); font-weight: bold; display: block; margin-top: 5px; }
+        input { width: 90%; padding: 12px; margin-bottom: 10px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; }
+        button { width: 100%; padding: 15px; border-radius: 50px; border: none; font-weight: bold; cursor: pointer; text-transform: uppercase; margin-top: 10px; transition: 0.3s; }
         #startBtn { background: var(--nic-blue); color: white; }
+        #startBtn:disabled { background: #ccc; cursor: not-allowed; }
         #stopBtn { background: var(--danger); color: white; }
-        #status { margin-top: 20px; font-weight: bold; color: #555; }
+        #stopBtn:disabled { background: #ccc; cursor: not-allowed; }
+        #status { margin-top: 20px; font-weight: bold; color: #555; font-size: 0.9rem; }
     </style>
 </head>
 <body>
     <div class="card">
-        <h2 style="color: var(--nic-blue);">Digital Sansad</h2>
-        <p>Speaker Terminal</p>
+        <h2 style="color: var(--nic-blue); margin-bottom: 5px;">Digital Sansad</h2>
+        
+        <div class="session-badge">
+            <small style="text-transform: uppercase; font-size: 10px; letter-spacing: 1px; color: #888;">Active Session</small>
+            <span id="sessionDisplay" class="session-title">Awaiting Admin...</span>
+        </div>
+        
         <input type="text" id="speakerName" placeholder="Full Name">
-        <input type="text" id="speakerDesig" placeholder="Designation (e.g. MP, Minister)">
-        <button id="startBtn">Connect Mic</button>
+        <input type="text" id="speakerDesig" placeholder="Designation (e.g. MP, Mayor)">
+        
+        <button id="startBtn" disabled>Connect Mic</button>
         <button id="stopBtn" disabled>Disconnect</button>
-        <div id="status">Status: Ready</div>
+        
+        <div id="status">Status: Standby</div>
     </div>
+
     <script>
         let socket; let mediaRecorder;
         const startBtn = document.getElementById('startBtn');
         const stopBtn = document.getElementById('stopBtn');
         const status = document.getElementById('status');
+        const sessionDisplay = document.getElementById('sessionDisplay');
+
+        // Check if a session is active on the server
+        async function checkSession() {
+            try {
+                // We ask the backend for the current session details
+                const res = await fetch('/api/sessions');
+                const sessions = await res.json();
+                // Since our backend logic sets 'current_session' globally, 
+                // we just check the latest one or a specific 'active' flag if we had one.
+                // For now, we rely on the backend rejecting ws connections if current_session is None.
+                sessionDisplay.innerText = "System Ready";
+                startBtn.disabled = false;
+            } catch (err) {
+                sessionDisplay.innerText = "Offline";
+            }
+        }
+
+        checkSession();
 
         startBtn.onclick = async () => {
-            const name = document.getElementById('speakerName').value;
-            const desig = document.getElementById('speakerDesig').value;
-            if(!name || !desig) return alert("Credentials Required.");
+            const rawName = document.getElementById('speakerName').value;
+            const rawDesig = document.getElementById('speakerDesig').value;
+
+            if(!rawName || !rawDesig) return alert("Identification Required.");
 
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const name = encodeURIComponent(rawName);
+                const desig = encodeURIComponent(rawDesig);
                 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                // Handshake sends Name and Designation in URL
-                socket = new WebSocket(`${protocol}//${location.host}/ws/${name}/${desig}`);
+                
+                socket = new WebSocket(`${protocol}//${location.host}/ws/stream?name=${name}&desig=${desig}`);
 
                 mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-                mediaRecorder.ondataavailable = (e) => { if(e.data.size > 0) socket.send(e.data); };
-                mediaRecorder.start(1000);
+                mediaRecorder.ondataavailable = (e) => { 
+                    if(e.data.size > 0 && socket.readyState === WebSocket.OPEN) socket.send(e.data); 
+                };
 
-                status.innerText = "🔴 LIVE RECORDING";
+                mediaRecorder.start(1000);
+                status.innerHTML = "<span style='color: var(--danger); animate: pulse;'>🔴 LIVE RECORDING...</span>";
                 startBtn.disabled = true; stopBtn.disabled = false;
+
+                socket.onclose = () => { status.innerText = "Session Finished"; resetUI(); };
+
             } catch (err) { alert("Mic Error: " + err.message); }
         };
 
         stopBtn.onclick = () => {
-            mediaRecorder.stop(); socket.close();
-            status.innerText = "Transmitted Successfully";
-            startBtn.disabled = false; stopBtn.disabled = true;
+            if(mediaRecorder) mediaRecorder.stop();
+            if(socket) socket.close();
+            status.innerText = "Transmitted";
+            resetUI();
         };
+
+        function resetUI() { startBtn.disabled = false; stopBtn.disabled = true; }
     </script>
 </body>
 </html>

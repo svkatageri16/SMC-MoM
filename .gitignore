@@ -3,6 +3,7 @@ cache/
 ffmpeg/
 ngrok*
 recordings/
+sessions/
 *.docx
 backup_transcript.txt
 raw_transcript.txt

@@ -1,5 +1,9 @@
 import os, time, re, uvicorn, json
+from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, Request
+
+# Load environment variables
+load_dotenv()
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from faster_whisper import WhisperModel
@@ -17,7 +21,7 @@ os.makedirs(REC_DIR, exist_ok=True)
 app.mount("/recordings", StaticFiles(directory=REC_DIR), name="recordings")
 
 # AI CONFIG
-GEMINI_KEY = "####################################"
+GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 genai.configure(api_key=GEMINI_KEY)
 # Initialize Whisper once on startup to save time
 print("--- Initializing Whisper (CPU/Medium) ---")
